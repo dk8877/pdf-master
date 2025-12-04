@@ -1,0 +1,5 @@
+{
+  "name": "PDF Master",
+  "description": "A client-side, open-access PDF manipulation suite featuring a cosmic glass UI. Merge, Split, Protect, and Optimize PDFs securely in your browser.",
+  "requestFramePermissions": []
+}
