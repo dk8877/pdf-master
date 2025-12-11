@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ViewState, ToolType, HistoryItem } from './types';
 import ToolWizard from './components/Tools/ToolWizard';
+import ProEditor from './components/Editor/ProEditor';
+import CosmicPhotoLab from './components/PhotoLab/CosmicPhotoLab';
+import { CreatorWidget, ProfileModal } from './components/CreatorProfile';
 import { 
   Files, 
   Scissors, 
@@ -15,6 +18,9 @@ import {
   Presentation,
   Image as ImageIcon,
   PenTool,
+  Unlock,
+  Wand2,
+  Heart
 } from 'lucide-react';
 
 function App() {
@@ -23,6 +29,7 @@ function App() {
   const [pdfLibLoaded, setPdfLibLoaded] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
     const scriptId = 'pdf-lib-script';
@@ -44,7 +51,7 @@ function App() {
 
     const script = document.createElement('script');
     script.id = scriptId;
-    script.src = 'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js';
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
     script.onload = () => {
       setPdfLibLoaded(true);
     };
@@ -78,7 +85,17 @@ function App() {
     { id: 'history', label: 'Time Logs', icon: History },
   ];
 
-  const tools: { id: ToolType; title: string; desc: string; icon: any; color: string; badge?: string }[] = [
+  const tools: { 
+    id: ToolType; 
+    title: string; 
+    desc: string; 
+    icon: any; 
+    color: string; 
+    badge?: string;
+    isPro?: boolean;
+    isLab?: boolean;
+  }[] = [
+    { id: 'photo-lab', title: 'Pixel Perfect Resizer', desc: 'Easily upscale or downscale your images with precision control.', icon: Wand2, color: 'text-indigo-400', badge: 'AI', isLab: true },
     { id: 'merge', title: 'Merge PDF', desc: 'Combine PDFs in the order you want with the easiest PDF merger available.', icon: Files, color: 'text-red-400' },
     { id: 'split', title: 'Split PDF', desc: 'Separate one page or a whole set for easy conversion into independent PDF files.', icon: Scissors, color: 'text-red-400' },
     { id: 'compress', title: 'Compress PDF', desc: 'Reduce file size while optimizing for maximal PDF quality.', icon: Minimize2, color: 'text-green-400' },
@@ -88,10 +105,12 @@ function App() {
     { id: 'word-to-pdf', title: 'Word to PDF', desc: 'Make DOC and DOCX files easy to read by converting them to PDF.', icon: FileText, color: 'text-blue-500' },
     { id: 'ppt-to-pdf', title: 'PowerPoint to PDF', desc: 'Make PPT and PPTX slideshows easy to view by converting them to PDF.', icon: Presentation, color: 'text-orange-500' },
     { id: 'excel-to-pdf', title: 'Excel to PDF', desc: 'Make EXCEL spreadsheets easy to read by converting them to PDF.', icon: FileSpreadsheet, color: 'text-green-600' },
-    { id: 'edit', title: 'Edit PDF', desc: 'Add text, images, shapes or freehand annotations to a PDF document.', icon: PenTool, color: 'text-fuchsia-400', badge: 'New!' },
+    { id: 'edit', title: 'Quick Edit', desc: 'Add simple watermarks or text stamps to your document quickly.', icon: PenTool, color: 'text-fuchsia-400' },
     { id: 'pdf-to-jpg', title: 'PDF to JPG', desc: 'Convert each PDF page into a JPG or extract all images contained in a PDF.', icon: ImageIcon, color: 'text-yellow-400' },
     { id: 'jpg-to-pdf', title: 'JPG to PDF', desc: 'Convert JPG images to PDF in seconds. Easily adjust orientation and margins.', icon: ImageIcon, color: 'text-yellow-500' },
     { id: 'protect', title: 'Protect PDF', desc: 'Encrypt your PDF with a password.', icon: ShieldCheck, color: 'text-violet-400' },
+    { id: 'unlock', title: 'Unlock PDF', desc: 'Remove password security from PDF files.', icon: Unlock, color: 'text-indigo-400' },
+    { id: 'edit-pro', title: 'Edit PDF Pro', desc: 'Advanced vector editing workspace. Add text, images, and manipulate layers in a futuristic interface.', icon: PenTool, color: 'text-amber-300', badge: 'PRO', isPro: true },
   ];
 
   if (loadError) {
@@ -185,6 +204,9 @@ function App() {
                 </button>
               ))}
             </nav>
+            
+            {/* Developer Profile Widget */}
+            <CreatorWidget onOpen={() => setIsProfileOpen(true)} />
           </div>
         </aside>
         
@@ -215,34 +237,84 @@ function App() {
                     <button
                       key={tool.id}
                       onClick={() => setActiveView(tool.id)}
-                      className="group relative p-6 rounded-3xl bg-[#1a163a]/40 border border-white/10 hover:border-cyan-400/50 text-left transition-all duration-300 hover:bg-[#1a163a]/60 hover:shadow-[0_0_30px_rgba(34,211,238,0.15)] overflow-hidden h-64 flex flex-col"
+                      className={`group relative p-6 rounded-3xl border text-left transition-all duration-300 overflow-hidden h-64 flex flex-col
+                        ${tool.isPro 
+                          ? 'bg-gradient-to-br from-[#1a163a]/80 to-purple-900/40 border-amber-500/30 hover:border-amber-400 hover:shadow-[0_0_40px_rgba(245,158,11,0.2)]' 
+                          : tool.isLab
+                          ? 'bg-gradient-to-br from-[#1a163a]/80 to-indigo-900/40 border-indigo-500/30 hover:border-indigo-400 hover:shadow-[0_0_40px_rgba(99,102,241,0.2)]'
+                          : 'bg-[#1a163a]/40 border-white/10 hover:border-cyan-400/50 hover:bg-[#1a163a]/60 hover:shadow-[0_0_30px_rgba(34,211,238,0.15)]'
+                        }
+                      `}
                     >
                        {/* Badge */}
                        {tool.badge && (
-                         <div className="absolute top-4 right-4 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider animate-pulse">
+                         <div className={`absolute top-4 right-4 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider animate-pulse 
+                            ${tool.isPro ? 'bg-amber-400 text-black shadow-[0_0_10px_rgba(251,191,36,0.6)]' 
+                              : tool.isLab ? 'bg-indigo-500 text-white shadow-[0_0_10px_rgba(99,102,241,0.6)]'
+                              : 'bg-red-500 text-white'}`}>
                            {tool.badge}
                          </div>
                        )}
 
-                       <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-fuchsia-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                       <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r 
+                        ${tool.isPro ? 'from-amber-500/10 to-purple-500/10' 
+                        : tool.isLab ? 'from-indigo-500/10 to-purple-500/10'
+                        : 'from-cyan-500/10 to-fuchsia-500/10'}`} 
+                       />
                        
                        <div className="relative z-10 flex flex-col h-full">
                          <div className="flex-1">
-                            <div className={`w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 group-hover:border-cyan-400/30 group-hover:shadow-[0_0_15px_rgba(34,211,238,0.3)]`}>
-                                <tool.icon className={`w-6 h-6 ${tool.color}`} />
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 
+                                ${tool.isPro 
+                                  ? 'bg-gradient-to-br from-amber-400/20 to-purple-600/20 border border-amber-500/30 shadow-[0_0_15px_rgba(251,191,36,0.2)]' 
+                                  : tool.isLab
+                                  ? 'bg-gradient-to-br from-indigo-400/20 to-purple-600/20 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.2)]'
+                                  : 'bg-white/5 border border-white/10 group-hover:border-cyan-400/30 group-hover:shadow-[0_0_15px_rgba(34,211,238,0.3)]'
+                                }`}>
+                                <tool.icon className={`w-6 h-6 ${tool.color} ${tool.isPro ? 'drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]' : ''}`} />
                             </div>
-                            <h3 className="text-xl font-bold text-white mb-2 group-hover:text-cyan-300 transition-colors">{tool.title}</h3>
+                            <h3 className={`text-xl font-bold mb-2 transition-colors ${tool.isPro ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500' : tool.isLab ? 'text-transparent bg-clip-text bg-gradient-to-r from-indigo-200 to-purple-400' : 'text-white group-hover:text-cyan-300'}`}>{tool.title}</h3>
                             <p className="text-slate-400 text-xs leading-relaxed group-hover:text-slate-300 line-clamp-3">{tool.desc}</p>
                          </div>
                        </div>
                     </button>
                   ))}
                 </div>
+
+                {/* Made With Love Footer - Redesigned */}
+                <div className="mt-32 mb-16 relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/5 to-transparent blur-xl"></div>
+                    <div className="relative bg-[#1a163a]/40 backdrop-blur-md border border-white/5 rounded-3xl p-8 md:p-12 overflow-hidden group">
+                        
+                        {/* Animated Background Elements */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-fuchsia-500/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 group-hover:bg-fuchsia-500/20 transition-colors duration-700"></div>
+                        <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] translate-y-1/2 -translate-x-1/2 group-hover:bg-cyan-500/20 transition-colors duration-700"></div>
+                        
+                        <div className="relative z-10 flex flex-col items-center justify-center text-center">
+                            <div className="mb-6 relative">
+                                <div className="absolute inset-0 bg-red-500/20 blur-xl rounded-full animate-pulse-slow"></div>
+                                <Heart className="w-12 h-12 text-red-500 fill-red-500 animate-[pulse_3s_ease-in-out_infinite] drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]" />
+                            </div>
+                            
+                            <h3 className="text-2xl md:text-3xl font-bold text-white mb-2 tracking-tight">
+                                Crafted with <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-pink-500">Passion</span> & <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Code</span>
+                            </h3>
+                            
+                            <p className="text-slate-400 text-sm md:text-base max-w-lg mx-auto leading-relaxed mb-6">
+                                Building tools that empower creativity and efficiency in the digital cosmos.
+                            </p>
+
+                            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-cyan-500/60 bg-white/5 px-4 py-2 rounded-full border border-white/5">
+                                <span>Architected by Cosmic Architect</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
               </div>
             )}
 
             {/* View: Tool Wizard */}
-            {activeView !== 'dashboard' && activeView !== 'history' && (
+            {activeView !== 'dashboard' && activeView !== 'history' && activeView !== 'edit-pro' && activeView !== 'photo-lab' && (
               <ToolWizard 
                 key={activeView}
                 tool={activeView as ToolType}
@@ -251,6 +323,26 @@ function App() {
                   addToHistory(fileName, action, size);
                 }}
               />
+            )}
+
+            {/* View: Pro Editor */}
+            {activeView === 'edit-pro' && (
+                <ProEditor 
+                    onCancel={() => setActiveView('dashboard')}
+                    onComplete={(fileName, action, size) => {
+                        addToHistory(fileName, action, size);
+                    }}
+                />
+            )}
+
+            {/* View: Photo Lab */}
+            {activeView === 'photo-lab' && (
+                <CosmicPhotoLab 
+                    onCancel={() => setActiveView('dashboard')}
+                    onComplete={(fileName, action, size) => {
+                        addToHistory(fileName, action, size);
+                    }}
+                />
             )}
 
             {/* View: History */}
@@ -300,6 +392,9 @@ function App() {
           </div>
         </main>
       </div>
+
+      {/* Render Profile Modal at Root Level */}
+      <ProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
     </div>
   );
 }

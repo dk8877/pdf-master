@@ -2,6 +2,7 @@ export type ToolType =
   | 'merge' 
   | 'split' 
   | 'protect' 
+  | 'unlock'
   | 'compress' 
   | 'pdf-to-word'
   | 'pdf-to-ppt'
@@ -10,6 +11,8 @@ export type ToolType =
   | 'ppt-to-pdf'
   | 'excel-to-pdf'
   | 'edit'
+  | 'edit-pro'
+  | 'photo-lab'
   | 'pdf-to-jpg'
   | 'jpg-to-pdf';
 
@@ -32,5 +35,6 @@ declare global {
   interface Window {
     PDFLib: any;
     pdfjsLib: any;
+    PptxGenJS: any;
   }
 }
