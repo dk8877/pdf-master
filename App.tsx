@@ -1,402 +1,253 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { ViewState, ToolType, HistoryItem } from './types';
 import ToolWizard from './components/Tools/ToolWizard';
+import SmartMerge from './components/Tools/SmartMerge';
+import SplitTool from './components/Tools/SplitTool';
+import CompressTool from './components/Tools/CompressTool';
+import BatchStudio from './components/Tools/BatchStudio';
+import AISummary from './components/Tools/AISummary';
+import PdfToImageTool from './components/Tools/PdfToImageTool';
+import ImageToPdfTool from './components/Tools/ImageToPdfTool';
 import ProEditor from './components/Editor/ProEditor';
 import CosmicPhotoLab from './components/PhotoLab/CosmicPhotoLab';
+import PrivacyScreen from './components/Privacy/PrivacyScreen';
 import { CreatorWidget, ProfileModal } from './components/CreatorProfile';
 import { 
-  Files, 
-  Scissors, 
-  ShieldCheck, 
-  Minimize2, 
-  LayoutDashboard, 
-  History, 
-  Menu,
-  Box,
-  FileText,
-  FileSpreadsheet,
-  Presentation,
-  Image as ImageIcon,
-  PenTool,
-  Unlock,
-  Wand2,
-  Heart
+  Files, Scissors, ShieldCheck, Box, FileText, FileSpreadsheet, 
+  Presentation, Image as ImageIcon, PenTool, Unlock, Wand2, X, 
+  UploadCloud, Sparkles, Search, ChevronRight, HelpCircle,
+  FileImage, FileCheck, ArrowUpRight, History, Shield, Layout,
+  Sun, Moon, Heart, FileStack, ShieldAlert, BrainCircuit, ArrowDownToLine
 } from 'lucide-react';
 
 function App() {
   const [activeView, setActiveView] = useState<ViewState>('dashboard');
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [pdfLibLoaded, setPdfLibLoaded] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [droppedFile, setDroppedFile] = useState<File | null>(null);
+  const [isPendingProcess, setIsPendingProcess] = useState(false);
+  const [showToolSelector, setShowToolSelector] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const mainRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const scriptId = 'pdf-lib-script';
-    
-    if (window.PDFLib) {
-      setPdfLibLoaded(true);
-      return;
-    }
+    if (isDarkMode) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+  }, [isDarkMode]);
 
-    if (document.getElementById(scriptId)) {
-      const interval = setInterval(() => {
-        if (window.PDFLib) {
-          setPdfLibLoaded(true);
-          clearInterval(interval);
-        }
-      }, 500);
-      return () => clearInterval(interval);
-    }
-
+  useEffect(() => {
+    if (window.PDFLib) { setPdfLibLoaded(true); return; }
     const script = document.createElement('script');
-    script.id = scriptId;
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
-    script.onload = () => {
-      setPdfLibLoaded(true);
-    };
-    script.onerror = () => {
-      setLoadError("Failed to load PDF library. Please check your internet connection.");
-    };
+    script.onload = () => setPdfLibLoaded(true);
+    script.onerror = () => setLoadError("Failed to load PDF engine.");
     document.body.appendChild(script);
-
-    const timeout = setTimeout(() => {
-      if (!window.PDFLib && !loadError) {
-        setLoadError("Loading is taking longer than expected. Please check your connection.");
-      }
-    }, 10000);
-
-    return () => clearTimeout(timeout);
   }, []);
 
   const addToHistory = (fileName: string, action: string, size: string) => {
-    const newItem: HistoryItem = {
-      id: Math.random().toString(36).substring(7),
-      fileName,
-      action,
-      timestamp: new Date(),
-      size
-    };
-    setHistory(prev => [newItem, ...prev]);
+    setHistory(prev => [{ id: Math.random().toString(36).substr(7), fileName, action, timestamp: new Date(), size }, ...prev]);
   };
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Mission Control', icon: LayoutDashboard },
-    { id: 'history', label: 'Time Logs', icon: History },
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files?.length) {
+      setDroppedFile(e.dataTransfer.files[0]);
+      setIsPendingProcess(true);
+      setActiveView('dashboard');
+    }
+  };
+
+  const toolCategories = [
+    {
+      name: 'Essential Tools',
+      tools: [
+        { id: 'ai-summary', title: 'AI PDF Summary', desc: 'Understand long PDFs faster with intelligent insights.', icon: BrainCircuit, color: 'text-indigo-600', bg: 'bg-indigo-50', badge: 'AI' },
+        { id: 'photo-lab', title: 'Image Resizer & Upscaler', desc: 'Easily upscale or downscale your images with precision control.', icon: Wand2, color: 'text-indigo-600', bg: 'bg-indigo-50', badge: 'AI' },
+        { id: 'merge', title: 'Smart PDF Merge', desc: 'Visually combine, reorder, and rotate pages from multiple PDFs.', icon: Files, color: 'text-rose-500', bg: 'bg-rose-50' },
+        { id: 'compress', title: 'Compress PDF', desc: 'High-precision compression that balances file size and professional quality.', icon: ArrowDownToLine, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+        { id: 'split', title: 'Split PDF', desc: 'Visual separation with range, individual, or manual selection.', icon: Scissors, color: 'text-rose-400', bg: 'bg-rose-50' },
+      ]
+    },
+    {
+      name: 'Conversion Suite',
+      tools: [
+        { id: 'pdf-to-jpg', title: 'PDF to Image', desc: 'Turn PDF pages into clear images (PNG/JPG) with resolution control.', icon: ImageIcon, color: 'text-yellow-500', bg: 'bg-yellow-50' },
+        { id: 'jpg-to-pdf', title: 'Image to PDF', desc: 'Combine multiple images into a professional PDF with reordering.', icon: FileImage, color: 'text-blue-600', bg: 'bg-blue-50' },
+        { id: 'pdf-to-word', title: 'PDF to Word', desc: 'Convert PDFs into easy to edit DOC and DOCX documents.', icon: FileText, color: 'text-blue-500', bg: 'bg-blue-50' },
+        { id: 'pdf-to-ppt', title: 'PDF to PowerPoint', desc: 'Turn PDFs into editable PPT and PPTX slideshows.', icon: Presentation, color: 'text-amber-500', bg: 'bg-amber-50' },
+        { id: 'pdf-to-excel', title: 'PDF to Excel', desc: 'Extract data from PDFs into clean Excel spreadsheets.', icon: FileSpreadsheet, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+        { id: 'word-to-pdf', title: 'Word to PDF', desc: 'Make DOC and DOCX files readable by converting them to PDF.', icon: FileText, color: 'text-sky-500', bg: 'bg-sky-50' },
+        { id: 'ppt-to-pdf', title: 'PowerPoint to PDF', desc: 'Make PPT slideshows universally readable as PDF.', icon: Presentation, color: 'text-orange-500', bg: 'bg-orange-50' },
+        { id: 'excel-to-pdf', title: 'Excel to PDF', desc: 'Convert spreadsheets to clean, professional PDFs.', icon: FileSpreadsheet, color: 'text-green-600', bg: 'bg-green-50' },
+      ]
+    },
+    {
+      name: 'Enterprise & Productivity',
+      tools: [
+        { id: 'batch', title: 'Batch Studio', desc: 'Process stacks of PDFs simultaneously with unified actions.', icon: FileStack, color: 'text-indigo-500', bg: 'bg-indigo-50', badge: 'PRO' },
+        { id: 'edit-pro', title: 'Pro Editor', desc: 'Advanced markup, drawing, and multi-layered PDF editing.', icon: Layout, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+        { id: 'protect', title: 'Protect PDF', desc: 'Encrypt your PDF with a password for secure sharing.', icon: ShieldCheck, color: 'text-slate-600', bg: 'bg-slate-100' },
+        { id: 'unlock', title: 'Unlock PDF', desc: 'Remove password security from protected PDF documents.', icon: Unlock, color: 'text-slate-400', bg: 'bg-slate-50' },
+      ]
+    }
   ];
 
-  const tools: { 
-    id: ToolType; 
-    title: string; 
-    desc: string; 
-    icon: any; 
-    color: string; 
-    badge?: string;
-    isPro?: boolean;
-    isLab?: boolean;
-  }[] = [
-    { id: 'photo-lab', title: 'Pixel Perfect Resizer', desc: 'Easily upscale or downscale your images with precision control.', icon: Wand2, color: 'text-indigo-400', badge: 'AI', isLab: true },
-    { id: 'merge', title: 'Merge PDF', desc: 'Combine PDFs in the order you want with the easiest PDF merger available.', icon: Files, color: 'text-red-400' },
-    { id: 'split', title: 'Split PDF', desc: 'Separate one page or a whole set for easy conversion into independent PDF files.', icon: Scissors, color: 'text-red-400' },
-    { id: 'compress', title: 'Compress PDF', desc: 'Reduce file size while optimizing for maximal PDF quality.', icon: Minimize2, color: 'text-green-400' },
-    { id: 'pdf-to-word', title: 'PDF to Word', desc: 'Easily convert your PDF files into easy to edit DOC and DOCX documents.', icon: FileText, color: 'text-blue-400' },
-    { id: 'pdf-to-ppt', title: 'PDF to PowerPoint', desc: 'Turn your PDF files into easy to edit PPT and PPTX slideshows.', icon: Presentation, color: 'text-orange-400' },
-    { id: 'pdf-to-excel', title: 'PDF to Excel', desc: 'Pull data straight from PDFs into Excel spreadsheets in a few short seconds.', icon: FileSpreadsheet, color: 'text-green-500' },
-    { id: 'word-to-pdf', title: 'Word to PDF', desc: 'Make DOC and DOCX files easy to read by converting them to PDF.', icon: FileText, color: 'text-blue-500' },
-    { id: 'ppt-to-pdf', title: 'PowerPoint to PDF', desc: 'Make PPT and PPTX slideshows easy to view by converting them to PDF.', icon: Presentation, color: 'text-orange-500' },
-    { id: 'excel-to-pdf', title: 'Excel to PDF', desc: 'Make EXCEL spreadsheets easy to read by converting them to PDF.', icon: FileSpreadsheet, color: 'text-green-600' },
-    { id: 'edit', title: 'Quick Edit', desc: 'Add simple watermarks or text stamps to your document quickly.', icon: PenTool, color: 'text-fuchsia-400' },
-    { id: 'pdf-to-jpg', title: 'PDF to JPG', desc: 'Convert each PDF page into a JPG or extract all images contained in a PDF.', icon: ImageIcon, color: 'text-yellow-400' },
-    { id: 'jpg-to-pdf', title: 'JPG to PDF', desc: 'Convert JPG images to PDF in seconds. Easily adjust orientation and margins.', icon: ImageIcon, color: 'text-yellow-500' },
-    { id: 'protect', title: 'Protect PDF', desc: 'Encrypt your PDF with a password.', icon: ShieldCheck, color: 'text-violet-400' },
-    { id: 'unlock', title: 'Unlock PDF', desc: 'Remove password security from PDF files.', icon: Unlock, color: 'text-indigo-400' },
-    { id: 'edit-pro', title: 'Edit PDF Pro', desc: 'Advanced vector editing workspace. Add text, images, and manipulate layers in a futuristic interface.', icon: PenTool, color: 'text-amber-300', badge: 'PRO', isPro: true },
-  ];
+  const filteredCategories = toolCategories.map(cat => ({ 
+    ...cat, 
+    tools: cat.tools.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase())) 
+  })).filter(c => c.tools.length > 0);
 
-  if (loadError) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[#0f0c29] text-white z-50">
-        <div className="text-center p-8 max-w-md bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl">
-          <div className="w-16 h-16 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/30">
-             <ShieldCheck className="w-8 h-8" />
-          </div>
-          <h2 className="text-xl font-bold mb-2">System Malfunction</h2>
-          <p className="text-slate-400 mb-6">{loadError}</p>
-          <button onClick={() => window.location.reload()} className="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg transition text-white font-medium shadow-[0_0_15px_rgba(8,145,178,0.5)]">Reboot System</button>
-        </div>
-      </div>
-    );
-  }
+  const handleToolComplete = (f: string, a: string, s: string) => { 
+    addToHistory(f, a, s); 
+    setDroppedFile(null); 
+    setIsPendingProcess(false); 
+  };
 
-  if (!pdfLibLoaded) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[#0f0c29] text-white z-50 overflow-hidden">
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
-        <div className="text-center relative z-10">
-          <div className="relative w-24 h-24 mx-auto mb-8">
-            <div className="absolute inset-0 border-t-4 border-cyan-400 rounded-full animate-spin"></div>
-            <div className="absolute inset-2 border-r-4 border-fuchsia-500 rounded-full animate-spin" style={{animationDirection: 'reverse', animationDuration: '2s'}}></div>
-          </div>
-          <h2 className="text-3xl font-bold tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-fuchsia-500">INITIALIZING</h2>
-          <p className="text-cyan-200/50 mt-4 text-sm uppercase tracking-[0.2em] animate-pulse">Loading PDF Core Engine</p>
-        </div>
-      </div>
-    );
-  }
+  if (loadError) return <div className="p-20 text-center">{loadError}</div>;
+  if (!pdfLibLoaded) return <div className="p-20 text-center animate-pulse">Syncing Engine...</div>;
 
   return (
-    <div className="min-h-screen relative text-slate-200 font-sans selection:bg-cyan-500/30 overflow-hidden bg-[#0f0c29]">
-      
-      {/* Background */}
-      <div className="fixed inset-0 z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e]" />
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-fuchsia-600/20 rounded-full blur-[120px] animate-pulse-slow" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-cyan-600/10 rounded-full blur-[120px] animate-pulse-slow" style={{animationDelay: '1s'}} />
-        <div className="absolute inset-0 opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] pointer-events-none"></div>
+    <div 
+      className="relative flex flex-col min-h-screen text-slate-600 dark:text-slate-400 font-sans transition-colors duration-1000 overflow-x-hidden"
+      onDragEnter={() => setIsDragging(true)}
+      onDragLeave={() => setIsDragging(false)}
+      onDrop={handleDrop}
+      onDragOver={(e) => e.preventDefault()}
+    >
+      <div className="mesh-container">
+        <div className="mesh-orb w-[1200px] h-[1200px] bg-indigo-100/30 dark:bg-indigo-900/10 -top-[10%] -left-[10%] animate-float-slow"></div>
+        <div className="mesh-orb w-[1000px] h-[1000px] bg-blue-100/30 dark:bg-blue-900/10 top-[20%] -right-[15%] animate-float-medium"></div>
       </div>
       
-      {/* Content */}
-      <div className="relative z-10 flex min-h-screen">
-        
-        {/* Mobile Header */}
-        <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#0f0c29]/80 backdrop-blur-xl z-40 flex items-center px-4 border-b border-white/10">
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-cyan-400 p-2 hover:bg-white/10 rounded-lg transition">
-            <Menu className="w-6 h-6" />
-          </button>
-          <div className="ml-3 flex items-center gap-2">
-            <Box className="w-5 h-5 text-fuchsia-500" />
-            <span className="text-white font-bold text-lg tracking-wider">PDF MASTER</span>
-          </div>
-        </div>
-
-        {/* Sidebar */}
-        <aside className={`
-          fixed lg:static inset-y-0 left-0 z-30 w-72 transform transition-transform duration-300 ease-in-out
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0
-          bg-[#0f0c29]/40 backdrop-blur-xl border-r border-white/5
-        `}>
-          <div className="p-8 flex flex-col h-full">
-            <div className="flex items-center gap-3 mb-10">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-fuchsia-600 flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.5)]">
-                <Box className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-white tracking-wider">PDF MASTER</h1>
-              </div>
+      <nav className="sticky top-0 z-50 px-3 py-3 md:px-6 md:py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-2 md:px-6 md:py-3 glass-card rounded-2xl md:rounded-3xl border-white/10 shadow-lg">
+          <div className="flex items-center gap-4 md:gap-8">
+            <button onClick={() => {setActiveView('dashboard'); setSearchQuery('');}} className="flex items-center gap-2 transition-all">
+              <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg md:rounded-xl bg-indigo-500 flex items-center justify-center text-white shadow-lg"><Box size={16} /></div>
+              <span className="font-bold text-slate-800 dark:text-slate-100 text-base md:text-lg tracking-tight">PDF Master</span>
+            </button>
+            <div className="hidden sm:flex items-center gap-4 md:gap-6">
+              <NavPill label="Tools" active={activeView === 'dashboard'} onClick={() => setActiveView('dashboard')} />
+              <NavPill label="History" active={activeView === 'history'} onClick={() => setActiveView('history')} />
+              <NavPill label="Privacy" active={activeView === 'privacy'} onClick={() => setActiveView('privacy')} />
             </div>
-
-            <nav className="space-y-2 flex-1">
-              {menuItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveView(item.id as ViewState);
-                    setSidebarOpen(false);
-                  }}
-                  className={`group w-full flex items-center gap-4 px-4 py-3 rounded-r-xl border-l-2 transition-all duration-300 ${
-                    activeView === item.id 
-                      ? 'bg-gradient-to-r from-cyan-500/10 to-transparent border-cyan-400 text-cyan-400' 
-                      : 'border-transparent text-slate-400 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${activeView === item.id ? 'text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]' : ''}`} />
-                  <span className="font-medium tracking-wide text-sm">{item.label}</span>
-                </button>
-              ))}
-            </nav>
-            
-            {/* Developer Profile Widget */}
+          </div>
+          <div className="flex items-center gap-2 md:gap-4">
+            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 text-slate-400 hover:text-indigo-500 rounded-xl hover:bg-white/50">{isDarkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
+            <div className="h-4 md:h-5 w-px bg-slate-200 dark:bg-slate-700 mx-1 md:mx-0" />
             <CreatorWidget onOpen={() => setIsProfileOpen(true)} />
           </div>
-        </aside>
-        
-        {/* Overlay for mobile sidebar */}
-        {sidebarOpen && (
-          <div 
-            className="fixed inset-0 bg-black/80 z-20 lg:hidden backdrop-blur-sm"
-            onClick={() => setSidebarOpen(false)}
-          />
+        </div>
+      </nav>
+
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 md:px-6 py-4 md:py-8">
+        {activeView === 'dashboard' && (
+          <div className="animate-reveal">
+            <header className="mb-8 md:mb-20 pt-4 md:pt-12 text-center max-w-3xl mx-auto flex flex-col items-center">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 dark:bg-indigo-900/20 rounded-full text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-4 md:mb-6">
+                <Heart size={10} className="fill-indigo-500" /> Crafted with Love
+              </div>
+              <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold text-slate-800 dark:text-slate-100 tracking-tight mb-6 md:mb-8 stagger-reveal">
+                <span>Simplify your</span>
+                <span className="block bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-500">Document Workflow.</span>
+              </h1>
+              <div className="w-full max-w-2xl relative stagger-reveal px-2 md:px-0">
+                <div className="relative glass-card flex items-center px-5 py-3 md:px-8 md:py-5 rounded-[24px] md:rounded-[40px] border-white/95 shadow-xl">
+                  <Search className="text-indigo-500" size={18} />
+                  <input type="text" placeholder="Search tools..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="bg-transparent border-none outline-none flex-1 ml-3 md:ml-4 text-base md:text-lg font-medium text-slate-800 dark:text-slate-100" />
+                </div>
+              </div>
+            </header>
+            <div className="space-y-12 md:space-y-20 pb-24 md:pb-32">
+              {filteredCategories.map(cat => (
+                <section key={cat.name} className="animate-reveal">
+                  <h2 className="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-200 tracking-tight mb-4 md:mb-8 px-2">{cat.name}</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                    {cat.tools.map(t => <ToolCard key={t.id} tool={t} onClick={() => setActiveView(t.id as ViewState)} />)}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
         )}
 
-        {/* Main Viewport */}
-        <main className="flex-1 p-4 lg:p-10 pt-24 lg:pt-10 overflow-y-auto h-screen scroll-smooth">
-          <div className="max-w-7xl mx-auto pb-10">
-            
-            {/* View: Dashboard */}
-            {activeView === 'dashboard' && (
-              <div className="animate-fade-in-up">
-                <header className="mb-12 relative">
-                  <h2 className="text-4xl lg:text-5xl font-bold text-white mb-2 tracking-tight">
-                    All <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-fuchsia-500">Tools</span>
-                  </h2>
-                  <p className="text-slate-400 text-lg">Make use of our collection of PDF tools to process your digital documents.</p>
-                </header>
+        {activeView === 'ai-summary' && <AISummary onCancel={() => setActiveView('dashboard')} onComplete={handleToolComplete} initialFile={droppedFile || undefined} />}
+        {activeView === 'merge' && <SmartMerge onCancel={() => setActiveView('dashboard')} onComplete={handleToolComplete} initialFiles={droppedFile ? [droppedFile] : undefined} />}
+        {activeView === 'split' && <SplitTool onCancel={() => setActiveView('dashboard')} onComplete={handleToolComplete} initialFile={droppedFile || undefined} />}
+        {activeView === 'compress' && <CompressTool onCancel={() => setActiveView('dashboard')} onComplete={handleToolComplete} initialFile={droppedFile || undefined} />}
+        {activeView === 'batch' && <BatchStudio onCancel={() => setActiveView('dashboard')} onComplete={handleToolComplete} />}
+        {activeView === 'pdf-to-jpg' && <PdfToImageTool onCancel={() => setActiveView('dashboard')} onComplete={handleToolComplete} initialFile={droppedFile || undefined} />}
+        {activeView === 'jpg-to-pdf' && <ImageToPdfTool onCancel={() => setActiveView('dashboard')} onComplete={handleToolComplete} />}
+        {activeView === 'edit-pro' && <ProEditor onCancel={() => setActiveView('dashboard')} onComplete={handleToolComplete} />}
+        {activeView === 'photo-lab' && <CosmicPhotoLab onCancel={() => setActiveView('dashboard')} onComplete={handleToolComplete} initialFile={droppedFile || undefined} />}
+        {activeView === 'privacy' && <PrivacyScreen onBack={() => setActiveView('dashboard')} />}
+        {activeView === 'history' && <HistoryView history={history} clear={() => setHistory([])} />}
+        
+        {['protect', 'unlock', 'pdf-to-word', 'pdf-to-ppt', 'pdf-to-excel', 'word-to-pdf', 'ppt-to-pdf', 'excel-to-pdf', 'edit'].includes(activeView) && (
+          <ToolWizard tool={activeView as ToolType} onCancel={() => setActiveView('dashboard')} onComplete={handleToolComplete} initialFiles={droppedFile ? [droppedFile] : undefined} />
+        )}
+      </main>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {tools.map((tool) => (
-                    <button
-                      key={tool.id}
-                      onClick={() => setActiveView(tool.id)}
-                      className={`group relative p-6 rounded-3xl border text-left transition-all duration-300 overflow-hidden h-64 flex flex-col
-                        ${tool.isPro 
-                          ? 'bg-gradient-to-br from-[#1a163a]/80 to-purple-900/40 border-amber-500/30 hover:border-amber-400 hover:shadow-[0_0_40px_rgba(245,158,11,0.2)]' 
-                          : tool.isLab
-                          ? 'bg-gradient-to-br from-[#1a163a]/80 to-indigo-900/40 border-indigo-500/30 hover:border-indigo-400 hover:shadow-[0_0_40px_rgba(99,102,241,0.2)]'
-                          : 'bg-[#1a163a]/40 border-white/10 hover:border-cyan-400/50 hover:bg-[#1a163a]/60 hover:shadow-[0_0_30px_rgba(34,211,238,0.15)]'
-                        }
-                      `}
-                    >
-                       {/* Badge */}
-                       {tool.badge && (
-                         <div className={`absolute top-4 right-4 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider animate-pulse 
-                            ${tool.isPro ? 'bg-amber-400 text-black shadow-[0_0_10px_rgba(251,191,36,0.6)]' 
-                              : tool.isLab ? 'bg-indigo-500 text-white shadow-[0_0_10px_rgba(99,102,241,0.6)]'
-                              : 'bg-red-500 text-white'}`}>
-                           {tool.badge}
-                         </div>
-                       )}
+      {isDragging && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 bg-indigo-600/10 backdrop-blur-md animate-reveal">
+           <div className="glass-card w-full max-w-4xl p-12 md:p-24 rounded-[32px] md:rounded-[48px] border-2 border-dashed border-indigo-300 flex flex-col items-center justify-center text-center animate-pulse">
+              <UploadCloud size={48} md:size={64} className="text-indigo-500 mb-6 md:mb-8" />
+              <h2 className="text-2xl md:text-4xl font-bold text-slate-800 tracking-tight mb-2 md:mb-4">Initialize Import</h2>
+              <p className="text-slate-500 font-medium text-sm md:text-base">Release to stage your document for transformation.</p>
+           </div>
+        </div>
+      )}
 
-                       <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r 
-                        ${tool.isPro ? 'from-amber-500/10 to-purple-500/10' 
-                        : tool.isLab ? 'from-indigo-500/10 to-purple-500/10'
-                        : 'from-cyan-500/10 to-fuchsia-500/10'}`} 
-                       />
-                       
-                       <div className="relative z-10 flex flex-col h-full">
-                         <div className="flex-1">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 
-                                ${tool.isPro 
-                                  ? 'bg-gradient-to-br from-amber-400/20 to-purple-600/20 border border-amber-500/30 shadow-[0_0_15px_rgba(251,191,36,0.2)]' 
-                                  : tool.isLab
-                                  ? 'bg-gradient-to-br from-indigo-400/20 to-purple-600/20 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.2)]'
-                                  : 'bg-white/5 border border-white/10 group-hover:border-cyan-400/30 group-hover:shadow-[0_0_15px_rgba(34,211,238,0.3)]'
-                                }`}>
-                                <tool.icon className={`w-6 h-6 ${tool.color} ${tool.isPro ? 'drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]' : ''}`} />
-                            </div>
-                            <h3 className={`text-xl font-bold mb-2 transition-colors ${tool.isPro ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500' : tool.isLab ? 'text-transparent bg-clip-text bg-gradient-to-r from-indigo-200 to-purple-400' : 'text-white group-hover:text-cyan-300'}`}>{tool.title}</h3>
-                            <p className="text-slate-400 text-xs leading-relaxed group-hover:text-slate-300 line-clamp-3">{tool.desc}</p>
-                         </div>
-                       </div>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Made With Love Footer - Redesigned */}
-                <div className="mt-32 mb-16 relative">
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-500/5 to-transparent blur-xl"></div>
-                    <div className="relative bg-[#1a163a]/40 backdrop-blur-md border border-white/5 rounded-3xl p-8 md:p-12 overflow-hidden group">
-                        
-                        {/* Animated Background Elements */}
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-fuchsia-500/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 group-hover:bg-fuchsia-500/20 transition-colors duration-700"></div>
-                        <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] translate-y-1/2 -translate-x-1/2 group-hover:bg-cyan-500/20 transition-colors duration-700"></div>
-                        
-                        <div className="relative z-10 flex flex-col items-center justify-center text-center">
-                            <div className="mb-6 relative">
-                                <div className="absolute inset-0 bg-red-500/20 blur-xl rounded-full animate-pulse-slow"></div>
-                                <Heart className="w-12 h-12 text-red-500 fill-red-500 animate-[pulse_3s_ease-in-out_infinite] drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]" />
-                            </div>
-                            
-                            <h3 className="text-2xl md:text-3xl font-bold text-white mb-2 tracking-tight">
-                                Crafted with <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-pink-500">Passion</span> & <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Code</span>
-                            </h3>
-                            
-                            <p className="text-slate-400 text-sm md:text-base max-w-lg mx-auto leading-relaxed mb-6">
-                                Building tools that empower creativity and efficiency in the digital cosmos.
-                            </p>
-
-                            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-cyan-500/60 bg-white/5 px-4 py-2 rounded-full border border-white/5">
-                                <span>Architected by Cosmic Architect</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-              </div>
-            )}
-
-            {/* View: Tool Wizard */}
-            {activeView !== 'dashboard' && activeView !== 'history' && activeView !== 'edit-pro' && activeView !== 'photo-lab' && (
-              <ToolWizard 
-                key={activeView}
-                tool={activeView as ToolType}
-                onCancel={() => setActiveView('dashboard')}
-                onComplete={(fileName, action, size) => {
-                  addToHistory(fileName, action, size);
-                }}
-              />
-            )}
-
-            {/* View: Pro Editor */}
-            {activeView === 'edit-pro' && (
-                <ProEditor 
-                    onCancel={() => setActiveView('dashboard')}
-                    onComplete={(fileName, action, size) => {
-                        addToHistory(fileName, action, size);
-                    }}
-                />
-            )}
-
-            {/* View: Photo Lab */}
-            {activeView === 'photo-lab' && (
-                <CosmicPhotoLab 
-                    onCancel={() => setActiveView('dashboard')}
-                    onComplete={(fileName, action, size) => {
-                        addToHistory(fileName, action, size);
-                    }}
-                />
-            )}
-
-            {/* View: History */}
-            {activeView === 'history' && (
-              <div className="animate-fade-in">
-                 <h2 className="text-3xl font-bold text-white mb-8">Time Logs</h2>
-                 {history.length === 0 ? (
-                   <div className="flex flex-col items-center justify-center py-20 text-slate-500 bg-white/5 rounded-3xl border border-white/5 border-dashed">
-                     <History className="w-16 h-16 mb-4 opacity-50" />
-                     <p>No operations recorded in this quadrant yet.</p>
-                   </div>
-                 ) : (
-                   <div className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 overflow-hidden">
-                     <div className="overflow-x-auto">
-                       <table className="w-full text-left">
-                         <thead className="bg-white/5 border-b border-white/10">
-                           <tr>
-                             <th className="p-6 text-xs font-bold text-cyan-400 uppercase tracking-wider">File Name</th>
-                             <th className="p-6 text-xs font-bold text-cyan-400 uppercase tracking-wider">Operation</th>
-                             <th className="p-6 text-xs font-bold text-cyan-400 uppercase tracking-wider">Mass</th>
-                             <th className="p-6 text-xs font-bold text-cyan-400 uppercase tracking-wider">Timestamp</th>
-                           </tr>
-                         </thead>
-                         <tbody className="divide-y divide-white/5">
-                           {history.map((item) => (
-                             <tr key={item.id} className="hover:bg-white/5 transition duration-200">
-                               <td className="p-6 font-medium text-white">{item.fileName}</td>
-                               <td className="p-6 text-slate-300">
-                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-fuchsia-500/10 text-fuchsia-300 border border-fuchsia-500/20">
-                                   {item.action}
-                                 </span>
-                               </td>
-                               <td className="p-6 text-slate-400 font-mono text-xs">{item.size}</td>
-                               <td className="p-6 text-slate-500 text-xs">
-                                 {item.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                               </td>
-                             </tr>
-                           ))}
-                         </tbody>
-                       </table>
-                     </div>
-                   </div>
-                 )}
-              </div>
-            )}
-
-          </div>
-        </main>
-      </div>
-
-      {/* Render Profile Modal at Root Level */}
       <ProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
     </div>
   );
 }
+
+const ToolCard: React.FC<{ tool: any, onClick: () => void }> = ({ tool, onClick }) => (
+  <button onClick={onClick} className="group relative min-h-[160px] md:h-[220px] rounded-[24px] md:rounded-[32px] glass-card overflow-hidden transition-all duration-700 text-left hover:scale-[1.02] hover:-translate-y-1 active:scale-95">
+    <div className="p-5 md:p-8 flex flex-col h-full relative z-10">
+      <div className={`w-10 h-10 md:w-14 md:h-14 p-2.5 md:p-4 rounded-xl md:rounded-2xl ${tool.bg} ${tool.color} mb-4 md:mb-6 transition-transform group-hover:scale-110 group-hover:rotate-3 shadow-sm`}>
+        <tool.icon size={20} md:size={24} />
+      </div>
+      <div className="flex justify-between items-start mb-1 md:mb-2">
+        <h3 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight group-hover:text-indigo-600">{tool.title}</h3>
+        {tool.badge && (
+          <span className="px-1.5 py-0.5 rounded-md bg-indigo-500 text-white text-[7px] md:text-[8px] font-black uppercase tracking-widest shrink-0 ml-2">{tool.badge}</span>
+        )}
+      </div>
+      <p className="text-[11px] md:text-xs text-slate-400 dark:text-slate-500 font-medium leading-relaxed opacity-80 line-clamp-2 md:line-clamp-none">{tool.desc}</p>
+    </div>
+  </button>
+);
+
+const NavPill = ({ label, active, onClick }: { label: string, active: boolean, onClick: () => void }) => (
+  <button onClick={onClick} className={`px-3 py-1 md:px-4 md:py-1.5 rounded-full text-xs md:text-sm font-bold transition-all ${active ? 'text-indigo-600 bg-indigo-50/80 shadow-sm' : 'text-slate-400 hover:text-slate-800'}`}>{label}</button>
+);
+
+const HistoryView = ({ history, clear }: { history: any[], clear: () => void }) => (
+  <div className="animate-reveal glass-card rounded-2xl md:rounded-[32px] p-6 md:p-10 min-h-[400px]">
+    <header className="flex justify-between items-center mb-6 md:mb-10">
+      <h2 className="text-xl md:text-3xl font-bold text-slate-800 dark:text-slate-100">Recent Activity</h2>
+      <button onClick={clear} className="text-[10px] md:text-xs font-bold text-slate-400 hover:text-rose-500">Clear All</button>
+    </header>
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[500px]">
+        <thead className="text-[9px] md:text-[10px] uppercase font-bold text-slate-400 tracking-widest border-b border-slate-100 dark:border-slate-800">
+          <tr><th className="px-4 md:px-6 py-4 text-left">Document</th><th className="px-4 md:px-6 py-4 text-left">Action</th><th className="px-4 md:px-6 py-4 text-right">Time</th></tr>
+        </thead>
+        <tbody>
+          {history.map(item => <tr key={item.id} className="hover:bg-white/40"><td className="px-4 md:px-6 py-5 md:py-6 font-bold text-slate-700 dark:text-slate-300 text-xs md:text-sm">{item.fileName}</td><td className="px-4 md:px-6 py-5 md:py-6 text-slate-500 text-xs md:text-sm">{item.action}</td><td className="px-4 md:px-6 py-5 md:py-6 text-right font-mono text-[10px] md:text-xs text-slate-400">{item.timestamp.toLocaleTimeString()}</td></tr>)}
+          {history.length === 0 && <tr><td colSpan={3} className="py-24 md:py-32 text-center text-slate-300 font-bold">No history in this session.</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
 
 export default App;

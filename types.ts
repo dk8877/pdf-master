@@ -1,3 +1,4 @@
+
 export type ToolType = 
   | 'merge' 
   | 'split' 
@@ -14,9 +15,11 @@ export type ToolType =
   | 'edit-pro'
   | 'photo-lab'
   | 'pdf-to-jpg'
-  | 'jpg-to-pdf';
+  | 'jpg-to-pdf'
+  | 'batch'
+  | 'ai-summary';
 
-export type ViewState = 'dashboard' | 'history' | ToolType;
+export type ViewState = 'dashboard' | 'history' | 'privacy' | ToolType;
 
 export interface HistoryItem {
   id: string;
@@ -29,6 +32,17 @@ export interface HistoryItem {
 export interface PDFFile {
   file: File;
   id: string;
+}
+
+export interface MergePage {
+  id: string;
+  originalFileId: string;
+  fileName: string;
+  pageIndex: number; // 0-based
+  thumbnail: string;
+  rotation: number;
+  width: number;
+  height: number;
 }
 
 declare global {
